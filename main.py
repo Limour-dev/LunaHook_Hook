@@ -29,11 +29,20 @@ if os.path.exists('config.json'):
         _cfg_json.update(json.load(f))
 
 
+def GetEditText():
+    tmp = _GetEditText(Cfg.EditControl.NativeWindowHandle)
+    prefix = '\r\n' + Cfg.var_d[:10]
+    retn = tmp[tmp.rindex(prefix)+2:]
+    Cfg.oldTextLen = len(tmp)
+    return retn
+
+
 class Cfg:
     selectedp: tuple
     control: auto.ControlFromHandle
     ListControl: auto.ListControl
     ListItem: dict
+    EditControl: auto.EditControl
     encoding_list = [
         'shift_jis',
         'gbk',
@@ -51,6 +60,21 @@ class Cfg:
     # ===== 插件选择 =====
     plugin: importlib.import_module
     GetClipboardText = auto.GetClipboardText
+    oldTextLen = 0
+    GetEditText = GetEditText
+
+
+def _GetEditText(handle: int) -> str:
+    """
+    Get text of a native Win32 Edit.
+    handle: int, the handle of a native window.
+    Return str.
+    """
+    textLen = auto.SendMessage(handle, 0x000E, 0, 0) + 1  # WM_GETTEXTLENGTH
+    arrayType = auto.ctypes.c_wchar * textLen
+    values = arrayType()
+    auto.SendMessage(handle, 0x000D, textLen, auto.ctypes.addressof(values))  # WM_GETTEXT
+    return values.value
 
 
 def allControls(control, _if=None, _pc=None):
@@ -126,6 +150,8 @@ def button_AttachProcess():
     Cfg.ListControl = Cfg.control.ListControl()
 
     button_ListItem()
+
+    Cfg.EditControl = Cfg.control.EditControl(foundIndex=2)
 
     Windows.root.after(500, clock_loop)
 
