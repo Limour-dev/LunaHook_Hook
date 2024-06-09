@@ -1,3 +1,4 @@
 mamba create -n uiautomation conda-forge::uiautomation
 conda activate uiautomation
 python $env:CONDA_PREFIX\Scripts\automation.py
+pip install opencc -i https://pypi.tuna.tsinghua.edu.cn/simple
