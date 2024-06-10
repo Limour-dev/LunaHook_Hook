@@ -46,7 +46,13 @@ if os.path.exists('config.json'):
 def GetEditText():
     tmp = _GetEditText(Cfg.EditControl.NativeWindowHandle)
     prefix = '\r\n' + Cfg.var_d[:10]
-    retn = tmp[tmp.rindex(prefix) + 2:]
+    try:
+        retn = tmp[tmp.rindex(prefix) + 2:]
+    except ValueError:
+        if tmp.startswith('\r\n'):
+            retn = tmp[tmp.rindex('\r\n') + 2:]
+        else:
+            retn = tmp
     Cfg.oldTextLen = len(tmp)
     return retn
 
