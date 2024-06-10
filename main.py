@@ -4,11 +4,23 @@ import tkinter as tk
 from tkinter import ttk
 import tkinter.filedialog as tkf
 from tkinter import messagebox
-import uiautomation as auto
+
+try:
+    import uiautomation as auto
+except ModuleNotFoundError:
+    print('uiautomation 缺失，Host后端失效')
+
+
+    class auto:
+        ControlFromHandle = None
+        ListControl = None
+        EditControl = None
+        GetClipboardText = None
 
 import mods.m03_windows as windows
 from mods.m05_attachprocess import getAttachProcess
 from mods.m06_clearT import clearT, get_all_files_in_directory
+from mods.m07_LunaHostCLI import LunaHook
 
 import os, json
 from io import TextIOWrapper
@@ -21,7 +33,9 @@ _cfg_json = {
     'ddb_char_Item': 0,
     'ddb_content_Item': 0,
     'ddb_plugin': 0,
-    'label_log': r'D:\datasets\tmp\1.txt'
+    'backendType': 1,
+    'label_log': r'D:\datasets\tmp\1.txt',
+    'label_cli_path': r'D:\scn\LunaTranslator\Release_Chinese\LunaHostCLI64.exe',
 }
 
 if os.path.exists('config.json'):
@@ -32,7 +46,7 @@ if os.path.exists('config.json'):
 def GetEditText():
     tmp = _GetEditText(Cfg.EditControl.NativeWindowHandle)
     prefix = '\r\n' + Cfg.var_d[:10]
-    retn = tmp[tmp.rindex(prefix)+2:]
+    retn = tmp[tmp.rindex(prefix) + 2:]
     Cfg.oldTextLen = len(tmp)
     return retn
 
@@ -59,9 +73,12 @@ class Cfg:
     log_add_size: int = 0
     # ===== 插件选择 =====
     plugin: importlib.import_module
+    # ===== 获取长文 =====
     GetClipboardText = auto.GetClipboardText
     oldTextLen = 0
     GetEditText = GetEditText
+    # ===== 后端选择 =====
+    backendType: tk.IntVar
 
 
 def _GetEditText(handle: int) -> str:
@@ -125,13 +142,52 @@ class Windows:
     button_char_map: tk.Button
     # ===== 插件选择 =====
     ddb_plugin: ttk.Combobox
+    # ===== 后端选择 =====
+    rb_backend_gui: tk.Radiobutton
+    rb_backend_cli: tk.Radiobutton
+    # ===== CLI路径 =====
+    label_cli_path: tk.Label
+    button_cli_path: tk
 
 
 # ===== 初始化窗口 =====
 Windows.root.title("LunaHook_log v0.2 " + ("管理员" if windows.IsUserAnAdmin() else "非管理员"))  # 窗口名
-Windows.root.geometry('640x320+10+10')  # axb为窗口大小，+10 +10 定义窗口弹出时的默认展示位置
+Windows.root.geometry('720x320+10+10')  # axb为窗口大小，+10 +10 定义窗口弹出时的默认展示位置
 
 Windows.root.attributes("-topmost", True)  # 设置窗口在最上层
+
+# ===== 后端选择 =====
+Cfg.backendType = tk.IntVar(Windows.root, value=_cfg_json['backendType'])
+Windows.rb_backend_gui = tk.Radiobutton(Windows.root, text="GUI", variable=Cfg.backendType, value=1)
+Windows.rb_backend_cli = tk.Radiobutton(Windows.root, text="CLI", variable=Cfg.backendType, value=2)
+Windows.rb_backend_gui.grid(row=102, column=0)
+Windows.rb_backend_cli.grid(row=102, column=1)
+
+# ===== CLI路径 =====
+Windows.label_cli_path = tk.Label(Windows.root, text=_cfg_json['label_cli_path'])
+Windows.label_cli_path.grid(row=103, column=1, columnspan=4)
+
+
+def button_cli_path():
+    _dir, _file = os.path.split(_cfg_json['label_cli_path'])
+    _askd_path = tkf.askopenfilename(
+        title='LunaHostCLI.exe 路径',
+        initialdir=_dir,
+        initialfile=_file,
+        filetypes=(('可执行文件', '.exe'),)
+    )
+    if not _askd_path:
+        return
+    _cfg_json['label_cli_path'] = _askd_path
+    Windows.label_cli_path.config(text=_askd_path)
+
+
+Windows.button_cli_path = tk.Button(
+    Windows.root,
+    text='选择 LunaHostCLI 路径',
+    command=button_cli_path
+)
+Windows.button_cli_path.grid(row=103, column=0)
 
 # ===== 选择进程 =====
 Windows.label_AttachProcessPID = tk.Label(Windows.root, text=f'等待选择窗口')
@@ -382,6 +438,7 @@ def on_closing():
         _cfg_json['ddb_char_Item'] = Windows.ddb_char_Item.current()
         _cfg_json['ddb_content_Item'] = Windows.ddb_content_Item.current()
         _cfg_json['ddb_plugin'] = Windows.ddb_plugin.current()
+        _cfg_json['backendType'] = Cfg.backendType.get()
         # ===== 持久化设置 =====
         with open(r'config.json', 'w', encoding='utf-8') as f:
             json.dump(_cfg_json, f, ensure_ascii=False, indent=4)
