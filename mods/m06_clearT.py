@@ -1,18 +1,29 @@
 import unicodedata
-from opencc import OpenCC
 import os
 import re
-
-cc = OpenCC('t2s')  # 't2s'表示繁体转简体
 
 
 def full2half(input_str):
     return ''.join([unicodedata.normalize('NFKC', char) for char in input_str])
 
 
-def clearT(s):
-    s = cc.convert(full2half(s))
-    return s.strip().strip(r'\n').replace('\n', '\\n')
+try:
+    from opencc import OpenCC
+
+    cc = OpenCC('t2s')  # 't2s'表示繁体转简体
+
+
+    def clearT(s):
+        s = cc.convert(full2half(s))
+        return s.strip().strip(r'\n').replace('\n', '\\n').replace('\r', '')
+
+except ModuleNotFoundError:
+    print('opencc 缺失，繁体转简体失效')
+
+
+    def clearT(s):
+        s = full2half(s)
+        return s.strip().strip(r'\n').replace('\n', '\\n').replace('\r', '')
 
 
 def get_all_files_in_directory(directory, ext=''):
