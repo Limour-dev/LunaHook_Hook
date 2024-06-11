@@ -8,7 +8,7 @@ from tkinter import messagebox
 try:
     import uiautomation as auto
 except ModuleNotFoundError:
-    print('uiautomation 缺失，Host后端失效')
+    print('uiautomation 缺失，GUI后端失效')
 
 
     class auto:
@@ -33,9 +33,10 @@ _cfg_json = {
     'ddb_char_Item': 0,
     'ddb_content_Item': 0,
     'ddb_plugin': 0,
-    'backendType': 1,
+    'backendType': 2,
     'label_log': r'D:\datasets\tmp\1.txt',
     'label_cli_path': r'D:\scn\LunaTranslator\Release_Chinese\LunaHostCLI64.exe',
+    'entry_delay': 5
 }
 
 if os.path.exists('config.json'):
@@ -44,21 +45,24 @@ if os.path.exists('config.json'):
 
 
 def GetEditText():
-    tmp = _GetEditText(Cfg.EditControl.NativeWindowHandle)
-    prefix = '\r\n' + Cfg.var_d[:10]
-    try:
-        retn = tmp[tmp.rindex(prefix) + 2:]
-    except ValueError:
-        if tmp.startswith('\r\n'):
-            retn = tmp[tmp.rindex('\r\n') + 2:]
-        else:
-            retn = tmp
-    Cfg.oldTextLen = len(tmp)
-    return retn
+    if Cfg.backendType.get() == 1:
+        tmp = _GetEditText(Cfg.EditControl.NativeWindowHandle)
+        prefix = '\r\n' + Cfg.var_d[:10]
+        try:
+            retn = tmp[tmp.rindex(prefix) + 2:]
+        except ValueError:
+            if tmp.startswith('\r\n'):
+                retn = tmp[tmp.rindex('\r\n') + 2:]
+            else:
+                retn = tmp
+        Cfg.oldTextLen = len(tmp)
+        return retn
+    else:
+        return Cfg.var_d
 
 
 class Cfg:
-    selectedp: tuple
+    selectedp: tuple = tuple()
     control: auto.ControlFromHandle
     ListControl: auto.ListControl
     ListItem: dict
@@ -85,6 +89,8 @@ class Cfg:
     GetEditText = GetEditText
     # ===== 后端选择 =====
     backendType: tk.IntVar
+    lunaHook: LunaHook
+    entry_delay: tk.IntVar
 
 
 def _GetEditText(handle: int) -> str:
@@ -151,6 +157,7 @@ class Windows:
     # ===== 后端选择 =====
     rb_backend_gui: tk.Radiobutton
     rb_backend_cli: tk.Radiobutton
+    entry_delay: tk.Entry
     # ===== CLI路径 =====
     label_cli_path: tk.Label
     button_cli_path: tk
@@ -208,14 +215,20 @@ def button_AttachProcess():
     Windows.label_AttachProcessPID.config(text=f'进程号:  {Cfg.selectedp[0]}; 窗口号:  {Cfg.selectedp[2]}')
     Windows.root.attributes("-topmost", True)  # 设置窗口在最上层
 
-    Cfg.control = auto.ControlFromHandle(Cfg.selectedp[2])
-    Cfg.ListControl = Cfg.control.ListControl()
+    if Cfg.backendType.get() == 1:
+        Cfg.control = auto.ControlFromHandle(Cfg.selectedp[2])
+        Cfg.ListControl = Cfg.control.ListControl()
 
-    button_ListItem()
+        button_ListItem()
 
-    Cfg.EditControl = Cfg.control.EditControl(foundIndex=2)
+        Cfg.EditControl = Cfg.control.EditControl(foundIndex=2)
 
-    Windows.root.after(500, clock_loop)
+        Windows.root.after(500, clock_loop_gui)
+    else:
+        Cfg.lunaHook = LunaHook(_cfg_json['label_cli_path'])
+        for pid in Cfg.selectedp[0]:
+            Cfg.lunaHook.attach(pid)
+        Windows.root.after(500, clock_loop_cli)
 
 
 Windows.button_AttachProcess = tk.Button(Windows.root, text='选择窗口', command=button_AttachProcess)
@@ -243,11 +256,14 @@ def _updateDdbHooks(_ddb, _hooks, _current=0):
 
 
 def button_ListItem():
-    Cfg.ListItem = allControls(Cfg.ListControl)
-    print(Cfg.ListItem)
-    _hooks = list(Cfg.ListItem.keys())
-    _updateDdbHooks(Windows.ddb_char_Item, _hooks)
-    _updateDdbHooks(Windows.ddb_content_Item, _hooks)
+    if Cfg.backendType.get() == 1:
+        Cfg.ListItem = allControls(Cfg.ListControl)
+        print(Cfg.ListItem)
+        _cfg_json['allHooks'] = list(Cfg.ListItem.keys())
+    else:
+        _cfg_json['allHooks'] = list(Cfg.lunaHook.allHooks.keys())
+    _updateDdbHooks(Windows.ddb_char_Item, _cfg_json['allHooks'])
+    _updateDdbHooks(Windows.ddb_content_Item, _cfg_json['allHooks'])
 
 
 Windows.button_ListItem = tk.Button(
@@ -272,26 +288,57 @@ def _cb_d():
     Windows.label_cb_d.config(text=Cfg.var_d[:35])
 
 
-def get_n():
+def get_n_gui():
     tmp = Cfg.ListItem[Windows.ddb_char_Item.get()].Name
     if Cfg.var_n != tmp:
         Cfg.var_n = tmp
         Windows.root.after(10, _cb_n)
 
 
-def get_d():
+def get_d_gui():
     tmp = Cfg.ListItem[Windows.ddb_content_Item.get()].Name
     if Cfg.var_d != tmp:
-        Windows.root.after(5, get_n)
+        Windows.root.after(5, get_n_gui)
         Cfg.var_d = tmp
         Windows.root.after(9, log_process)
         Windows.root.after(10, _cb_d)
 
 
 # ===== 时钟循环 =====
-def clock_loop():
-    get_d()
-    Windows.root.after(50, clock_loop)
+Cfg.entry_delay = tk.IntVar(Windows.root, value=_cfg_json['entry_delay'])
+Windows.entry_delay = tk.Entry(Windows.root, textvariable=Cfg.entry_delay)
+Windows.entry_delay.grid(row=102, column=2)
+
+
+def entry_delay(a, b, c):
+    _cfg_json['entry_delay'] = Cfg.entry_delay.get()
+    print('entry_delay', _cfg_json['entry_delay'], c)
+
+
+Cfg.entry_delay.trace('w', entry_delay)
+
+
+def clock_loop_gui():
+    get_d_gui()
+    Windows.root.after(50, clock_loop_gui)
+
+
+def clock_loop_cli():
+    try:
+        while True:
+            hook, tmp = Cfg.lunaHook.onData(block=False)
+            if not hook:
+                return
+            print(hook, tmp)
+            if hook == Windows.ddb_content_Item.get():
+                Cfg.var_d = tmp
+                Windows.root.after(10, _cb_d)
+                Windows.root.after(_cfg_json['entry_delay'] * 3, log_process)
+            elif hook == Windows.ddb_char_Item.get():
+                Cfg.var_n = tmp
+                Windows.root.after(10, _cb_n)
+    finally:
+        Windows.root.after(_cfg_json['entry_delay'], clock_loop_cli)
 
 
 # ===== 日志记录 =====
@@ -440,7 +487,6 @@ def on_closing():
     if messagebox.askokcancel("保存", "保存当前状态?"):
         _cfg_json['ddb_char'] = Windows.ddb_char.current()
         _cfg_json['ddb_content'] = Windows.ddb_content.current()
-        _cfg_json['allHooks'] = list(Cfg.ListItem.keys())
         _cfg_json['ddb_char_Item'] = Windows.ddb_char_Item.current()
         _cfg_json['ddb_content_Item'] = Windows.ddb_content_Item.current()
         _cfg_json['ddb_plugin'] = Windows.ddb_plugin.current()
@@ -448,6 +494,11 @@ def on_closing():
         # ===== 持久化设置 =====
         with open(r'config.json', 'w', encoding='utf-8') as f:
             json.dump(_cfg_json, f, ensure_ascii=False, indent=4)
+
+    if Cfg.backendType.get() == 2 and Cfg.selectedp:
+        for pid in Cfg.selectedp[0]:
+            Cfg.lunaHook.detach(pid)
+
     Windows.root.destroy()
 
 
