@@ -9,4 +9,11 @@ def log_process(clearT, Cfg, Windows):
             var_d = var_d[idx:]
         else:
             var_n = '旁白'
+    elif var_d.endswith('』') and '『' in var_d:
+        idx = var_d.index('『')
+        var_n = var_d[:idx]
+        if var_n:
+            var_d = var_d[idx:]
+        else:
+            var_n = '旁白'
     return clearT(var_n) + '：' + clearT(var_d)
