@@ -55,7 +55,7 @@ def GetEditText():
                 retn = tmp[tmp.rindex('\r\n') + 2:]
             else:
                 retn = tmp
-        Cfg.oldTextLen = len(tmp)
+        Cfg.oldText = tmp
         return retn
     else:
         return Cfg.var_d
@@ -85,7 +85,7 @@ class Cfg:
     plugin: importlib.import_module
     # ===== 获取长文 =====
     GetClipboardText = auto.GetClipboardText
-    oldTextLen = 0
+    oldText = ''
     GetEditText = GetEditText
     # ===== 后端选择 =====
     backendType: tk.IntVar
@@ -298,9 +298,9 @@ def get_n_gui():
 def get_d_gui():
     tmp = Cfg.ListItem[Windows.ddb_content_Item.get()].Name
     if Cfg.var_d != tmp:
-        Windows.root.after(5, get_n_gui)
+        Windows.root.after(_cfg_json['entry_delay'] * 3, get_n_gui)
         Cfg.var_d = tmp
-        Windows.root.after(9, log_process)
+        Windows.root.after(_cfg_json['entry_delay'] * 3 + 5, log_process)
         Windows.root.after(10, _cb_d)
 
 
@@ -319,8 +319,10 @@ Cfg.entry_delay.trace('w', entry_delay)
 
 
 def clock_loop_gui():
-    get_d_gui()
-    Windows.root.after(50, clock_loop_gui)
+    try:
+        get_d_gui()
+    finally:
+        Windows.root.after(_cfg_json['entry_delay'], clock_loop_gui)
 
 
 def clock_loop_cli():
@@ -398,6 +400,8 @@ def log_flush():
 
 Windows.root.after(2000, log_flush)
 
+log_process_oldLine = ''
+
 
 def log_process():
     line = Cfg.plugin.log_process(clearT, Cfg, Windows)
@@ -405,7 +409,10 @@ def log_process():
     if (not Cfg.log) or not Cfg.var_d:
         return
     if line:
-        Cfg.log_add_size += Cfg.log_file.write(line + '\n')
+        global log_process_oldLine
+        if log_process_oldLine != line:
+            Cfg.log_add_size += Cfg.log_file.write(line + '\n')
+            log_process_oldLine = line
 
 
 # ===== 插件选择 =====
