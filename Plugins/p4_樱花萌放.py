@@ -1,6 +1,6 @@
 oldLine = ''
 
-brackets = {'「': '」', '（': '）', '『': '』', '【': '】', '“': '”'}
+brackets = {'「': '」', '（': '）', '『': '』', '【': '】'}
 
 brackets_r = {v: k for k, v in brackets.items()}
 
