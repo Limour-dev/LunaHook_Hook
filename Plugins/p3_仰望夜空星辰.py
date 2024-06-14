@@ -16,6 +16,8 @@ def endsWithAny(s: str, keys):
 
 brackets = {'「': '」', '（': '）', '『': '』', '【': '】', '“': '”'}
 
+oldLine = ''
+
 
 def log_process(clearT, Cfg, Windows):
     var_d: str = Cfg.var_d
@@ -25,4 +27,10 @@ def log_process(clearT, Cfg, Windows):
         var_n = Cfg.var_n
     else:
         var_n = '旁白'
-    return clearT(var_n) + '：' + clearT(var_d)
+    line = clearT(var_n) + '：' + clearT(var_d)
+    global oldLine
+    if oldLine != line:
+        oldLine = line
+    else:
+        return ''
+    return line
