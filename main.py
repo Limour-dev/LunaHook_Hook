@@ -418,8 +418,12 @@ Cfg.plugin = importlib.import_module('.' + Windows.ddb_plugin.get(), 'Plugins')
 @Windows.root.register
 def ddb_plugin_update():
     _plugin = Windows.ddb_plugin.get()
-    Cfg.plugin = importlib.import_module('.' + _plugin, 'Plugins')
-    print(Cfg.plugin)
+    if Cfg.plugin.__name__.endswith(_plugin):
+        Cfg.plugin = importlib.reload(Cfg.plugin)
+        print('reload', Cfg.plugin)
+    else:
+        Cfg.plugin = importlib.import_module('.' + _plugin, 'Plugins')
+        print('import_module', Cfg.plugin)
 
 
 Windows.ddb_plugin.bind('<<ComboboxSelected>>', ddb_plugin_update)
