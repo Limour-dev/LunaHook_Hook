@@ -5,7 +5,11 @@ from queue import Queue, Empty
 
 def enqueue_readline(out, q):
     while True:
-        q.put(out.readline())
+        try:
+            q.put(out.readline())
+        except Exception as e:
+            print(e)
+
 
 
 class LunaHook:
