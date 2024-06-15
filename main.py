@@ -327,11 +327,14 @@ def clock_loop_gui():
 
 def clock_loop_cli():
     try:
+        hook_cache = {}
         while True:
             hook, tmp = Cfg.lunaHook.onData(block=False)
             if not hook:
-                return
+                break
             print(hook, tmp)
+            hook_cache[hook] = hook_cache.get(hook, '') + tmp
+        for hook, tmp in hook_cache.items():
             if hook == Windows.ddb_content_Item.get():
                 Cfg.var_d = tmp
                 Windows.root.after(10, _cb_d)
