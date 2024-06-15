@@ -325,24 +325,41 @@ def clock_loop_gui():
         Windows.root.after(_cfg_json['entry_delay'], clock_loop_gui)
 
 
-def clock_loop_cli():
+clock_loop_hook_cache = {}
+
+
+def clock_loop_cli_hook_cache():
+    global clock_loop_hook_cache
+    while True:
+        hook, tmp = Cfg.lunaHook.onData(block=False)
+        if not hook:
+            break
+        print(hook, tmp)
+        clock_loop_hook_cache[hook] = clock_loop_hook_cache.get(hook, '') + tmp
+
+
+def clock_loop_cli_b():
+    global clock_loop_hook_cache
     try:
-        hook_cache = {}
-        while True:
-            hook, tmp = Cfg.lunaHook.onData(block=False)
-            if not hook:
-                break
-            print(hook, tmp)
-            hook_cache[hook] = hook_cache.get(hook, '') + tmp
-        for hook, tmp in hook_cache.items():
+        clock_loop_cli_hook_cache()
+        for hook, tmp in clock_loop_hook_cache.items():
             if hook == Windows.ddb_content_Item.get():
                 Cfg.var_d = tmp
                 Windows.root.after(10, _cb_d)
-                Windows.root.after(_cfg_json['entry_delay'] * 3, log_process)
+                Windows.root.after(_cfg_json['entry_delay'], log_process)
             elif hook == Windows.ddb_char_Item.get():
                 Cfg.var_n = tmp
                 Windows.root.after(10, _cb_n)
     finally:
+        clock_loop_hook_cache = {}
+        Windows.root.after(_cfg_json['entry_delay'], clock_loop_cli)
+
+
+def clock_loop_cli():
+    clock_loop_cli_hook_cache()
+    if clock_loop_hook_cache:
+        Windows.root.after(_cfg_json['entry_delay'], clock_loop_cli_b)
+    else:
         Windows.root.after(_cfg_json['entry_delay'], clock_loop_cli)
 
 
