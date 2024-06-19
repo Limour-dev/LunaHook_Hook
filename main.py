@@ -54,7 +54,12 @@ def GetEditText():
             if tmp.startswith('\r\n'):
                 retn = tmp[tmp.rindex('\r\n') + 2:]
             else:
-                retn = tmp
+                if len(Cfg.oldText) < len(tmp):
+                    retn = tmp[len(Cfg.oldText):].strip()
+                    if len(retn) < len(Cfg.var_d):
+                        retn = Cfg.var_d
+                else:
+                    retn = Cfg.var_d
         Cfg.oldText = tmp
         return retn
     else:
