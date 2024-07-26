@@ -15,7 +15,7 @@ try:
 
     def clearT(s):
         s = cc.convert(full2half(s))
-        return s.strip().strip(r'\n').replace('\n', '\\n').replace('\r', '')
+        return s.strip().replace('\n', '\\n').replace('\r', '')
 
 except ModuleNotFoundError:
     print('opencc 缺失，繁体转简体失效')
@@ -23,7 +23,7 @@ except ModuleNotFoundError:
 
     def clearT(s):
         s = full2half(s)
-        return s.strip().strip(r'\n').replace('\n', '\\n').replace('\r', '')
+        return s.strip().replace('\n', '\\n').replace('\r', '')
 
 
 def get_all_files_in_directory(directory, ext=''):
