@@ -30,9 +30,15 @@ cache = []
 cache_tmp = ''
 cache_var_n = ''
 
+sysT = {'快速保存。', '文本自动推进。', '快进。', '打开设置界面。',
+        '打开历史界面。', '打开读取界面。', '打开保存界面。',
+        '快速读取。', '快速保存。'}
+
 
 def log_process(clearT, Cfg, Windows):
     var_d: str = Cfg.var_d
+    if var_d.strip() in sysT:
+        return ''
     tmp = endsWithAny(var_d, brackets_r.keys())
     tmp2 = ''
     if tmp == '）' and '（' in var_d:
