@@ -66,6 +66,10 @@ class LunaHook:
         if line.startswith('['):
             idx = line.index(']')
             hook, text = line[1:idx], line[idx + 1:]
+            hook = hook.split(':')
+            hook = hook[0] + ':' + ':'.join(hook[5:])
+            if '@' in hook:
+                hook = hook[:hook.rindex('@')]
             self.allHooks[hook] = text
             self.lastHook = hook
         else:
