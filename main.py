@@ -157,6 +157,7 @@ class Windows:
     # ===== 人名后处理 =====
     button_char_find: tk.Button
     button_char_map: tk.Button
+    button_char_fix: tk.Button
     # ===== 插件选择 =====
     ddb_plugin: ttk.Combobox
     # ===== 后端选择 =====
@@ -464,7 +465,7 @@ Windows.ddb_plugin.bind('<<ComboboxSelected>>', ddb_plugin_update)
 # ===== 人名后处理 =====
 def button_char_find():
     _dir, _file = os.path.split(_cfg_json['label_log'])
-    _a = get_all_files_in_directory(_dir)
+    _a = get_all_files_in_directory(_dir, '.txt')
     _n = {}
     for _path in _a:
         with open(_path, 'r', encoding='utf-8') as _f:
@@ -477,7 +478,7 @@ def button_char_find():
                     else:
                         _n[n] = n
                         print(_line)
-    with open('name_map.json', 'w', encoding='utf-8') as _f:
+    with open(os.path.join(_dir, 'name_map.json'), 'w', encoding='utf-8') as _f:
         json.dump(_n, _f, ensure_ascii=False, indent=4)
 
 
@@ -491,8 +492,8 @@ Windows.button_char_find.grid(row=101, column=1)
 
 def button_char_map():
     _dir, _file = os.path.split(_cfg_json['label_log'])
-    _a = get_all_files_in_directory(_dir)
-    with open('name_map.json', 'r', encoding='utf-8') as _f:
+    _a = get_all_files_in_directory(_dir, '.txt')
+    with open(os.path.join(_dir, 'name_map.json'), 'r', encoding='utf-8') as _f:
         _n: dict = json.load(_f)
     for _path in _a:
         with open(_path, 'r', encoding='utf-8') as _f:
@@ -514,6 +515,91 @@ Windows.button_char_map = tk.Button(
     command=button_char_map
 )
 Windows.button_char_map.grid(row=101, column=2)
+
+
+def simpleSplit(_s: str, _sp, _st=0, _shift=True):
+    _idx = _s.find(_sp, _st)
+    if _idx < 0:
+        return '', _s
+    if _shift:
+        return _s[:_idx], _s[_idx + len(_sp):]
+    else:
+        return _s[:_idx], _s[_idx:]
+
+
+def button_char_fix():
+    _dir, _file = os.path.split(_cfg_json['label_log'])
+    _a = get_all_files_in_directory(_dir, '.txt')
+    for _path in _a:
+        with open(_path, 'r', encoding='utf-8') as _f:
+            _lines = _f.readlines()
+        _n = set()
+        for _line in _lines:
+            n, d = simpleSplit(_line, '：')
+            if n and n != '旁白':
+                _n.add(n)
+        _res_lines = []
+        _cache = ''
+        import re
+        _re_rep = re.compile(r'^(.+?)\1+$')
+        for _line in _lines:
+            if _cache:
+                n, d = simpleSplit(_cache, '：')
+                _pre_n, _pre_d = simpleSplit(_line, '：')
+                if _pre_n == '旁白':
+                    _pre_d: str = _pre_d.strip()
+                    if _pre_d in _n:
+                        _res_lines.append(_pre_d + '：' + d)
+                        _cache = ''
+                        continue
+                    _tmp = _re_rep.findall(_pre_d)
+                    if len(_tmp) == 1:
+                        _pre_d = _tmp[0]
+                        if _pre_d in _n:
+                            _res_lines.append(_pre_d + '：' + d)
+                            _cache = ''
+                            continue
+                _res_lines.append('<sp>' + _cache)
+                _cache = ''
+
+            n, d = simpleSplit(_line, '：')
+            if not n:
+                if _res_lines:
+                    _pre_n, _pre_d = simpleSplit(_res_lines[-1], '：')
+                    if _pre_n == '旁白':
+                        _pre_d: str = _pre_d.strip()
+                        if _pre_d in _n:
+                            _res_lines[-1] = _pre_d + '：' + d
+                            continue
+                        _tmp = _re_rep.findall(_pre_d)
+                        if len(_tmp) == 1:
+                            _pre_d = _tmp[0]
+                            if _pre_d in _n:
+                                _res_lines[-1] = _pre_d + '：' + d
+                                continue
+                _cache = _line
+                continue
+            _res_lines.append(_line)
+        else:
+            if _cache:
+                _res_lines.append('<sp>' + _cache)
+        try:
+            with open(_path, 'w', encoding='utf-8') as _f:
+                _f.writelines(_res_lines)
+        except Exception as e:
+            with open(_path, 'w', encoding='utf-8') as _f:
+                _f.writelines(_lines)
+            raise e
+
+        print(_path, 'done')
+
+
+Windows.button_char_fix = tk.Button(
+    Windows.root,
+    text='错行修复',
+    command=button_char_fix
+)
+Windows.button_char_fix.grid(row=101, column=3)
 
 
 # ===== 进入消息循环 =====
