@@ -21,6 +21,7 @@ import mods.m03_windows as windows
 from mods.m05_attachprocess import getAttachProcess
 from mods.m06_clearT import clearT, get_all_files_in_directory
 from mods.m07_LunaHostCLI import LunaHook
+from mods.m09_memRead import str2ce, MemRead, Pymem
 
 import os, json
 from io import TextIOWrapper
@@ -36,7 +37,8 @@ _cfg_json = {
     'backendType': 2,
     'label_log': r'D:\datasets\tmp\1.txt',
     'label_cli_path': r'D:\scn\LunaTranslator\Release_Chinese\LunaHostCLI64.exe',
-    'entry_delay': 5
+    'entry_delay': 5,
+    'ddb_str2ce': 2
 }
 
 if os.path.exists('config.json'):
@@ -76,7 +78,8 @@ class Cfg:
         'shift_jis',
         'gbk',
         'utf-8',
-        'utf-16-le',
+        'utf-16le',
+        'utf-16be',
         'utf-32-le',
         'big5',
     ]
@@ -96,6 +99,10 @@ class Cfg:
     backendType: tk.IntVar
     lunaHook: LunaHook
     entry_delay: tk.IntVar
+    # ===== CE =====
+    game_ce: Pymem
+    n_ce: MemRead = None
+    d_ce: MemRead = None
 
 
 def _GetEditText(handle: int) -> str:
@@ -144,9 +151,15 @@ class Windows:
     # ===== 人物 =====
     ddb_char: ttk.Combobox
     ddb_char_Item: ttk.Combobox
+    entry_char_ce: tk.Entry
+    entry_char_max_len_ce: tk.Entry
+    button_char_ce: tk.Button
     # ===== 内容 =====
     ddb_content: ttk.Combobox
     ddb_content_Item: ttk.Combobox
+    entry_content_ce: tk.Entry
+    entry_content_max_len_ce: tk.Entry
+    button_content_ce: tk.Button
     # ===== 捕获输出 =====
     label_cb_n: tk.Label
     label_cb_d: tk.Label
@@ -163,24 +176,60 @@ class Windows:
     # ===== 后端选择 =====
     rb_backend_gui: tk.Radiobutton
     rb_backend_cli: tk.Radiobutton
+    rb_backend_ce: tk.Radiobutton
     entry_delay: tk.Entry
     # ===== CLI路径 =====
     label_cli_path: tk.Label
     button_cli_path: tk
+    # ===== str2ce =====
+    label_str2ce: tk.Label
+    ddb_str2ce: ttk.Combobox
+    entry_str2ce: tk.Entry
+    button_str2ce: tk.Button
 
 
 # ===== 初始化窗口 =====
 Windows.root.title("LunaHook_log v0.2 " + ("管理员" if windows.IsUserAnAdmin() else "非管理员"))  # 窗口名
-Windows.root.geometry('720x320+10+10')  # axb为窗口大小，+10 +10 定义窗口弹出时的默认展示位置
+Windows.root.geometry('880x640+10+10')  # axb为窗口大小，+10 +10 定义窗口弹出时的默认展示位置
 
 Windows.root.attributes("-topmost", True)  # 设置窗口在最上层
+
+# ===== str2ce =====
+Windows.label_str2ce = tk.Label(Windows.root, text='CE转义：')
+Windows.label_str2ce.grid(row=30, column=0)
+
+Windows.ddb_str2ce = ddb_list(_cfg_json['ddb_str2ce'], Cfg.encoding_list)
+Windows.ddb_str2ce.grid(row=30, column=1)
+
+Windows.entry_str2ce = tk.Entry(Windows.root)
+Windows.entry_str2ce.grid(row=30, column=2)
+
+
+def button_str2ce():
+    Windows.root.clipboard_clear()
+    Windows.root.clipboard_append(
+        str2ce(
+            _s=Windows.entry_str2ce.get(),
+            _encode=Windows.ddb_str2ce.get()
+        )
+    )
+
+
+Windows.button_str2ce = tk.Button(
+    Windows.root,
+    text='复制到剪贴板',
+    command=button_str2ce
+)
+Windows.button_str2ce.grid(row=30, column=3)
 
 # ===== 后端选择 =====
 Cfg.backendType = tk.IntVar(Windows.root, value=_cfg_json['backendType'])
 Windows.rb_backend_gui = tk.Radiobutton(Windows.root, text="GUI", variable=Cfg.backendType, value=1)
 Windows.rb_backend_cli = tk.Radiobutton(Windows.root, text="CLI", variable=Cfg.backendType, value=2)
+Windows.rb_backend_ce = tk.Radiobutton(Windows.root, text="CE", variable=Cfg.backendType, value=3)
 Windows.rb_backend_gui.grid(row=102, column=0)
 Windows.rb_backend_cli.grid(row=102, column=1)
+Windows.rb_backend_ce.grid(row=102, column=2)
 
 # ===== CLI路径 =====
 Windows.label_cli_path = tk.Label(Windows.root, text=_cfg_json['label_cli_path'])
@@ -230,11 +279,15 @@ def button_AttachProcess():
         Cfg.EditControl = Cfg.control.EditControl(foundIndex=2)
 
         Windows.root.after(500, clock_loop_gui)
-    else:
+    elif Cfg.backendType.get() == 2:
         Cfg.lunaHook = LunaHook(_cfg_json['label_cli_path'])
         for pid in Cfg.selectedp[0]:
             Cfg.lunaHook.attach(pid)
         Windows.root.after(500, clock_loop_cli)
+    elif Cfg.backendType.get() == 3:
+        Cfg.game_ce = Pymem(Cfg.selectedp[0][0])
+        Windows.root.after(500, clock_loop_ce)
+        print(Cfg.game_ce)
 
 
 Windows.button_AttachProcess = tk.Button(Windows.root, text='选择窗口', command=button_AttachProcess)
@@ -246,12 +299,76 @@ Windows.ddb_char.grid(row=3, column=0)
 
 Windows.ddb_char_Item = ddb_list(_cfg_json['ddb_char_Item'], _cfg_json['allHooks'])
 Windows.ddb_char_Item.grid(row=3, column=1, columnspan=2)
+
+# ===== 人物CE =====
+Windows.entry_char_ce = tk.Entry(Windows.root)
+Windows.entry_char_ce.grid(row=31, column=1)
+
+
+@Windows.root.register
+def check_digit(content):
+    if content.isdigit() or content == "":
+        return True
+    else:
+        return False
+
+
+Windows.entry_char_max_len_ce = tk.Entry(Windows.root,
+                                         validate='key',
+                                         textvariable=tk.StringVar(value='10'),
+                                         vcmd=(check_digit, '%P'))
+Windows.entry_char_max_len_ce.grid(row=31, column=0)
+
+
+def button_char_ce():
+    Cfg.n_ce = MemRead(
+        Cfg.game_ce,
+        Windows.entry_char_ce.get(),
+        Windows.ddb_char.get(),
+        int(Windows.entry_char_max_len_ce.get())
+    )
+
+
+Windows.button_char_ce = tk.Button(
+    Windows.root,
+    text='设置人名地址',
+    command=button_char_ce
+)
+Windows.button_char_ce.grid(row=31, column=2)
+
 # ===== 内容 =====
 Windows.ddb_content = ddb_list(_cfg_json['ddb_content'], Cfg.encoding_list)
 Windows.ddb_content.grid(row=4, column=0)
 
 Windows.ddb_content_Item = ddb_list(_cfg_json['ddb_content_Item'], _cfg_json['allHooks'])
 Windows.ddb_content_Item.grid(row=4, column=1, columnspan=2)
+
+# ===== 内容CE =====
+Windows.entry_content_ce = tk.Entry(Windows.root)
+Windows.entry_content_ce.grid(row=32, column=1)
+
+Windows.entry_content_max_len_ce = tk.Entry(Windows.root,
+                                            validate='key',
+                                            textvariable=tk.StringVar(value='60'),
+                                            vcmd=(check_digit, '%P'))
+Windows.entry_content_max_len_ce.grid(row=32, column=0)
+
+
+def button_content_ce():
+    Cfg.d_ce = MemRead(
+        Cfg.game_ce,
+        Windows.entry_content_ce.get(),
+        Windows.ddb_content.get(),
+        int(Windows.entry_content_max_len_ce.get())
+    )
+
+
+Windows.button_content = tk.Button(
+    Windows.root,
+    text='设置内容地址',
+    command=button_content_ce
+)
+Windows.button_content.grid(row=32, column=2)
 
 
 # ===== 枚举列表 =====
@@ -291,7 +408,7 @@ def _cb_n():
 
 
 def _cb_d():
-    Windows.label_cb_d.config(text=Cfg.var_d[:35])
+    Windows.label_cb_d.config(text=Cfg.var_d[:60])
 
 
 def get_n_gui():
@@ -313,7 +430,7 @@ def get_d_gui():
 # ===== 时钟循环 =====
 Cfg.entry_delay = tk.IntVar(Windows.root, value=_cfg_json['entry_delay'])
 Windows.entry_delay = tk.Entry(Windows.root, textvariable=Cfg.entry_delay)
-Windows.entry_delay.grid(row=102, column=2)
+Windows.entry_delay.grid(row=102, column=3)
 
 
 def entry_delay(a, b, c):
@@ -367,6 +484,23 @@ def clock_loop_cli():
         Windows.root.after(_cfg_json['entry_delay'], clock_loop_cli_b)
     else:
         Windows.root.after(_cfg_json['entry_delay'], clock_loop_cli)
+
+
+def clock_loop_ce():
+    try:
+        if Cfg.n_ce is not None:
+            tmp = Cfg.n_ce()
+            if tmp != Cfg.var_n:
+                Cfg.var_n = tmp
+                Windows.root.after(10, _cb_n)
+        if Cfg.d_ce is not None:
+            tmp = Cfg.d_ce()
+            if tmp != Cfg.var_d:
+                Cfg.var_d = tmp
+                Windows.root.after(10, _cb_d)
+                Windows.root.after(_cfg_json['entry_delay'], log_process)
+    finally:
+        Windows.root.after(_cfg_json['entry_delay'], clock_loop_ce)
 
 
 # ===== 日志记录 =====
@@ -613,13 +747,17 @@ def on_closing():
         _cfg_json['ddb_content_Item'] = Windows.ddb_content_Item.current()
         _cfg_json['ddb_plugin'] = Windows.ddb_plugin.current()
         _cfg_json['backendType'] = Cfg.backendType.get()
+        _cfg_json['ddb_str2ce'] = Windows.ddb_str2ce.current()
         # ===== 持久化设置 =====
         with open(r'config.json', 'w', encoding='utf-8') as f:
             json.dump(_cfg_json, f, ensure_ascii=False, indent=4)
 
-    if Cfg.backendType.get() == 2 and Cfg.selectedp:
-        for pid in Cfg.selectedp[0]:
-            Cfg.lunaHook.detach(pid)
+    if Cfg.selectedp:
+        if Cfg.backendType.get() == 2:
+            for pid in Cfg.selectedp[0]:
+                Cfg.lunaHook.detach(pid)
+        elif Cfg.backendType.get() == 3:
+            Cfg.game_ce.close_process()
 
     Windows.root.destroy()
 
