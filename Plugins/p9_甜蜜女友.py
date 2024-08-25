@@ -49,22 +49,29 @@ def log_process(clearT, Cfg, Windows):
     var_n = clearT(var_n).replace('???', '?')
 
     if cache:
-        cache.append(var_d)
-        if var_d.endswith(cache_tmp):
-            sp = cache_var_n + '：' + clearT(' '.join(cache))
+        tmp = startsWithAny(var_d, brackets)
+        if tmp:
+            sp = cache_var_n + '<sp>：' + clearT(' '.join(cache)) + '\n'  # 标记一下，后期手动处理
             cache = []
-            return sp
         else:
-            return ''
+            cache.append(var_d)
+            if var_d.endswith(cache_tmp):
+                sp = cache_var_n + '：' + clearT(' '.join(cache))
+                cache = []
+                return sp
+            else:
+                return ''
+    else:
+        sp = ''
 
     tmp = startsWithAny(var_d, brackets)
     if tmp:
         if var_d.endswith(brackets[tmp]):
-            return var_n + '：' + clearT(var_d)
+            return sp + var_n + '：' + clearT(var_d)
         else:
             cache.append(var_d)
             cache_tmp = brackets[tmp]
             cache_var_n = var_n
-            return ''
+            return sp.rstrip()
     else:
         return '旁白：' + clearT(var_d)
