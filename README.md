@@ -9,3 +9,17 @@ conda create -n uiautomation conda-forge::uiautomation
 conda activate uiautomation
 pip install OpenCC Pymem -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
+# 插件对应格式
+## p7_保健室老师
+```txt
+祐司「不用客气，我自己也要吃，只是顺便做一下你的份」
+```
+## p8_回忆忘却之匣
+```txt
+【祐司】「不用客气，我自己也要吃，只是顺便做一下你的份」
+```
+## p9_甜蜜女友|p6_初雪樱
+```txt
+祐司
+「不用客气，我自己也要吃，只是顺便做一下你的份」
+```
