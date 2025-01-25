@@ -39,6 +39,8 @@ def log_process(clearT, Cfg, Windows):
     var_d: str = Cfg.var_d
     if var_d.strip() in sysT:
         return ''
+    if len(var_d) % 2 == 0 and var_d[::2] == var_d[1::2]:
+        var_d = var_d[::2]
     tmp = endsWithAny(var_d, brackets_r.keys())
     tmp2 = ''
     if tmp == '）' and '（' in var_d:
@@ -61,6 +63,8 @@ def log_process(clearT, Cfg, Windows):
             return '旁白：' + clearT(var_d)
         else:
             cache_var_n = tmp[1]
+            if not cache_var_n.strip():
+                cache_var_n = Cfg.var_n
             cache_tmp = tmp[0]
             cache.append(tmp[2])
             return ''
@@ -75,6 +79,8 @@ def log_process(clearT, Cfg, Windows):
         elif brackets_r[tmp] in var_d:
             idx = var_d.index(brackets_r[tmp])
             var_n = var_d[:idx]
+            if not var_n.strip():
+                var_n = Cfg.var_n
             var_d = var_d[idx:]
             return clearT(var_n) + '：' + clearT(var_d + tmp2)
         else:
