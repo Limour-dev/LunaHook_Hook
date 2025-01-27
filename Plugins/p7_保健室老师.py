@@ -36,9 +36,18 @@ sysT = {'快速保存。', '文本自动推进。', '快进。', '打开设置�
 
 
 def log_process(clearT, Cfg, Windows):
-    var_d: str = Cfg.var_d
+    var_d: str = Cfg.var_d.strip()
+    Cfg.var_n = Cfg.var_n.strip()
     if var_d.strip() in sysT:
         return ''
+    # print(var_d, Cfg.var_n)
+    if var_d.startswith(Cfg.var_n):
+        var_d = var_d[len(Cfg.var_n):]
+        # print(var_d)
+        if len(var_d) % 2 == 0 and var_d[::2] == var_d[1::2]:
+            var_d = var_d[::2]
+        var_d = Cfg.var_n + var_d
+        # print(var_d)
     if len(var_d) % 2 == 0 and var_d[::2] == var_d[1::2]:
         var_d = var_d[::2]
     tmp = endsWithAny(var_d, brackets_r.keys())
@@ -81,7 +90,9 @@ def log_process(clearT, Cfg, Windows):
             var_n = var_d[:idx]
             if not var_n.strip():
                 var_n = Cfg.var_n
-            var_d = var_d[idx:]
+            var_d = var_d[idx:].strip()
+            if len(var_d) % 2 == 0 and var_d[::2] == var_d[1::2]:
+                var_d = var_d[::2]
             return clearT(var_n) + '：' + clearT(var_d + tmp2)
         else:
             return '旁白<sp>：' + clearT(var_d + tmp2)  # 标记一下，后期手动处理
